@@ -28,6 +28,30 @@
 | 🎯 탐지기 | DETR | 광빈 |
 | 🎯 탐지기 | YOLO | 보인 |
 
+## 🤝 협업 규칙
+
+충돌을 줄이고 변경 사항을 한곳에서 확인할 수 있도록 아래처럼 진행합니다.
+
+**폴더 구조**
+
+```
+classifier/dino/   🧠 DINO 분류기 (재구)
+detector/detr/     🎯 DETR 탐지기 (광빈)
+detector/yolo/     🎯 YOLO 탐지기 (보인)
+```
+
+**작업 순서**
+
+1. 작업 전에 `git pull origin main`으로 최신 내용 받기
+2. 내 브랜치 만들기: `dino/<작업명>`, `detr/<작업명>`, `yolo/<작업명>`
+3. 되도록 **내 파트 폴더 안에서만** 수정
+4. push 후 `main`으로 **Pull Request** 열기 → 템플릿에 맞춰 작업 내용 보고
+5. @gawbi 승인 후 merge
+
+> [!IMPORTANT]
+> `main`에는 직접 push할 수 없고, Pull Request + @gawbi 승인으로만 반영됩니다.
+> 모델 가중치·데이터셋 같은 큰 파일은 올리지 않습니다.
+
 ## 🎯 Detector · DETR
 
 지금까지 실험해 보니 DETR 계열은 **과적합이 잘 생기는 편**이라, 과적합을 줄이는 방향으로 실험을 진행합니다.

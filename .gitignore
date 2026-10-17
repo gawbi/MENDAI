@@ -216,3 +216,16 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ML artifacts (weights, datasets, logs)
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.engine
+*.safetensors
+datasets/
+checkpoints/
+runs/
+wandb/
+outputs/
