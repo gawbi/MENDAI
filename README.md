@@ -2,12 +2,12 @@
 
 # 🛠️ MEND AI
 
-**DETR 계열 객체 탐지 모델 실험 & 비교**
+**분류기(DINO) · 탐지기(DETR / YOLO) 모델 실험 & 비교**
 
 ![Status](https://img.shields.io/badge/status-in%20progress-orange)
-![Models](https://img.shields.io/badge/models-RF--DETR%20%7C%20RT--DETR-blue)
+![Classifier](https://img.shields.io/badge/classifier-DINO-green)
+![Detector](https://img.shields.io/badge/detector-DETR%20%7C%20YOLO-blue)
 ![Fine-tuning](https://img.shields.io/badge/fine--tuning-LoRA-purple)
-![Resolution](https://img.shields.io/badge/resolution-640%20%7C%201024-informational)
 
 </div>
 
@@ -15,10 +15,24 @@
 
 ## 📌 Overview
 
-새 데이터셋에서 DETR 계열 탐지 모델(**RF-DETR**, **RT-DETR**)을 비교하고 학습 설정을 정리하는 레포입니다.
+새 데이터셋으로 **분류기**와 **탐지기**를 나눠 실험하고, 학습 설정과 결과를 정리하는 레포입니다.
+
+- **분류기:** DINO
+- **탐지기:** DETR 계열(RF-DETR, RT-DETR), YOLO
+
+## 🧑‍🤝‍🧑 Team
+
+| 파트 | 모델 | 담당 |
+|------|------|:--:|
+| 🧠 분류기 | DINO | 재구 |
+| 🎯 탐지기 | DETR | 광빈 |
+| 🎯 탐지기 | YOLO | 보인 |
+
+## 🎯 Detector · DETR
+
 지금까지 실험해 보니 DETR 계열은 **과적합이 잘 생기는 편**이라, 과적합을 줄이는 방향으로 실험을 진행합니다.
 
-## 🔬 Model Comparison
+### 🔬 Model Comparison
 
 지금까지 결과 기준, **과적합이 적은 순서**입니다.
 
@@ -31,7 +45,7 @@
 > [!NOTE]
 > RT-DETR은 아직 새 데이터셋으로 학습해 보지 않았습니다.
 
-## ⚙️ Training Setup
+### ⚙️ Training Setup
 
 | 항목 | 설정 | 이유 |
 |------|------|------|
@@ -41,12 +55,15 @@
 
 ## 🗺️ Roadmap
 
-- [ ] RT-DETR 3-seed 실험 결과 공유 (산학 쪽에서 학습 중)
+**공통**
 - [ ] 새 데이터셋 라벨링이 끝나면 공유
+- [ ] 평가지표 정해서 통일
+
+**Detector · DETR**
+- [ ] RT-DETR 3-seed 실험 결과 공유 (산학 쪽에서 학습 중)
 - [ ] RT-DETR을 새 데이터셋에서 확인하고 쓸지 결정
 - [ ] RF-DETR / RF-DETR + LoRA 실험 @ 640
 - [ ] 결과가 좋은 설정은 1024로 다시 실험
-- [ ] 평가지표 정해서 통일
 
 ## 👥 Contributors
 
