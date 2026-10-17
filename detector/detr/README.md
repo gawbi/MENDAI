@@ -134,7 +134,7 @@ seed 0, 30 epoch으로 해상도 × 모델 조합을 돌립니다. 해상도 순
 | 항목 | 설정 |
 |------|------|
 | 공통 | seed 0, 30 epoch, 입력 크기 = 복사본 크기. epoch · 입력 크기 · seed · batch 외에는 라이브러리 기본값 |
-| RT-DETR | `deterministic=False` (Ultralytics가 RT-DETR에 권장) |
+| RT-DETR | `deterministic=False` (Ultralytics가 RT-DETR에 권장), `amp=bf16`, `optimizer=AdamW`, `lr0=1e-4`. 기본값(`optimizer=auto` → AdamW lr 0.00167, fp16 AMP)으로는 2026-10-17 640 run에서 epoch 4부터 val loss가, epoch 6부터 train loss가 NaN이 되어 바꿨습니다. bf16은 fp16 오버플로를 막고, 1e-4는 RT-DETR 논문의 학습률입니다. 모든 RT-DETR run에 같은 값을 씁니다 |
 | RF-DETR | `batch_size × grad_accum = 16` |
 | best 체크포인트 | 라이브러리가 고르는 대로 둡니다. 둘 다 val mAP50-95 기준: Ultralytics `best.pt`, rfdetr `checkpoint_best_total.pth` (EMA) |
 
@@ -173,6 +173,7 @@ flowchart LR
 ```bat
 C:\mendai\envs\rtdetr\Scripts\python.exe train_rtdetr.py ^
   --data C:\mendai\data\mendi_damage_v5_20261017\dataset_damage_v5_640\data.yaml --imgsz 640 --batch 8 ^
+  --amp bf16 --optimizer AdamW --lr0 0.0001 ^
   --project C:\mendai\runs\rtdetr --name rtdetr-l_640_s0 --weights-dir C:\mendai\weights
 ```
 
@@ -186,7 +187,9 @@ C:\mendai\envs\rtdetr\Scripts\python.exe train_rtdetr.py ^
 | `--seed` | 0 | |
 | `--workers` | 4 | 데이터 로더 워커 수 |
 | `--model` | `rtdetr-l.pt` | COCO 사전학습 가중치 (`rtdetr-x.pt`도 가능) |
-| `--amp` | `True` | `True` / `False` / `bf16` |
+| `--amp` | `True` | `True`(fp16) / `False` / `bf16`. 팀 run은 `bf16` |
+| `--optimizer` | `auto` | Ultralytics optimizer. `auto`는 라이브러리가 고릅니다 (이 데이터에서는 AdamW lr 0.00167). 팀 run은 `AdamW` |
+| `--lr0` | | 초기 학습률. `--optimizer`를 직접 줄 때만 적용됩니다. 팀 run은 `0.0001` |
 | `--exist-ok` | | 같은 이름의 run 폴더에 번호를 붙이지 않고 다시 씀 |
 | `--weights-dir` | | 사전학습 가중치 다운로드 폴더 (작업 폴더가 됨) |
 | `--resume` | | 중단된 run의 `last.pt`. 이때는 위 필수 옵션 없이 나머지 설정을 last.pt에서 읽음 |
