@@ -1,4 +1,4 @@
-# 🎯 Detector · DETR
+# Detector · DETR
 
 **담당:** 광빈
 

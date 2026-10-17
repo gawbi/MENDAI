@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 232" width="640" height="232" role="img" aria-label="Share of boxes with short side under 32px, by input resolution">
+<title>Share of boxes with short side under 32px, by input resolution</title>
+<g font-family='-apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif'>
+<rect x="112" y="12" width="10" height="10" rx="2" fill="#3987e5"/>
+<text x="128" y="21" font-size="13" fill="#f0efec">outsole</text>
+<rect x="201.2" y="12" width="10" height="10" rx="2" fill="#d95926"/>
+<text x="217.2" y="21" font-size="13" fill="#f0efec">heel_lining</text>
+<line x1="112.0" x2="112.0" y1="38" y2="208" stroke="#46464a" stroke-width="1"/>
+<text x="112.0" y="224" font-size="12" fill="#9a988f" text-anchor="middle">0%</text>
+<line x1="205.3" x2="205.3" y1="38" y2="208" stroke="#2c2c2a" stroke-width="1"/>
+<text x="205.3" y="224" font-size="12" fill="#9a988f" text-anchor="middle">10%</text>
+<line x1="298.7" x2="298.7" y1="38" y2="208" stroke="#2c2c2a" stroke-width="1"/>
+<text x="298.7" y="224" font-size="12" fill="#9a988f" text-anchor="middle">20%</text>
+<line x1="392.0" x2="392.0" y1="38" y2="208" stroke="#2c2c2a" stroke-width="1"/>
+<text x="392.0" y="224" font-size="12" fill="#9a988f" text-anchor="middle">30%</text>
+<line x1="485.3" x2="485.3" y1="38" y2="208" stroke="#2c2c2a" stroke-width="1"/>
+<text x="485.3" y="224" font-size="12" fill="#9a988f" text-anchor="middle">40%</text>
+<text x="100" y="67.0" font-size="12" fill="#c3c2b7" text-anchor="end">640 input</text>
+<path d="M112.0,44.0 L299.3,44.0 Q303.3,44.0 303.3,48.0 L303.3,58.0 Q303.3,62.0 299.3,62.0 L112.0,62.0 Z" fill="#3987e5"><title>640 input · outsole: 20.5%</title></path>
+<text x="309.3" y="57.0" font-size="12" fill="#c3c2b7">20.5%</text>
+<path d="M112.0,64.0 L553.2,64.0 Q557.2,64.0 557.2,68.0 L557.2,78.0 Q557.2,82.0 553.2,82.0 L112.0,82.0 Z" fill="#d95926"><title>640 input · heel_lining: 47.7%</title></path>
+<text x="563.2" y="77.0" font-size="12" fill="#c3c2b7">47.7%</text>
+<text x="100" y="127.0" font-size="12" fill="#c3c2b7" text-anchor="end">1024 input</text>
+<path d="M112.0,104.0 L206.0,104.0 Q210.0,104.0 210.0,108.0 L210.0,118.0 Q210.0,122.0 206.0,122.0 L112.0,122.0 Z" fill="#3987e5"><title>1024 input · outsole: 10.5%</title></path>
+<text x="216.0" y="117.0" font-size="12" fill="#c3c2b7">10.5%</text>
+<path d="M112.0,124.0 L342.3,124.0 Q346.3,124.0 346.3,128.0 L346.3,138.0 Q346.3,142.0 342.3,142.0 L112.0,142.0 Z" fill="#d95926"><title>1024 input · heel_lining: 25.1%</title></path>
+<text x="352.3" y="137.0" font-size="12" fill="#c3c2b7">25.1%</text>
+<text x="100" y="187.0" font-size="12" fill="#c3c2b7" text-anchor="end">1536 original</text>
+<path d="M112.0,164.0 L154.7,164.0 Q158.7,164.0 158.7,168.0 L158.7,178.0 Q158.7,182.0 154.7,182.0 L112.0,182.0 Z" fill="#3987e5"><title>1536 original · outsole: 5%</title></path>
+<text x="164.7" y="177.0" font-size="12" fill="#c3c2b7">5%</text>
+<path d="M112.0,184.0 L212.5,184.0 Q216.5,184.0 216.5,188.0 L216.5,198.0 Q216.5,202.0 212.5,202.0 L112.0,202.0 Z" fill="#d95926"><title>1536 original · heel_lining: 11.2%</title></path>
+<text x="222.5" y="197.0" font-size="12" fill="#c3c2b7">11.2%</text>
+</g></svg>

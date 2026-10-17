@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 232" width="640" height="232" role="img" aria-label="Box count per class and split">
+<title>Box count per class and split</title>
+<g font-family='-apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif'>
+<rect x="112" y="12" width="10" height="10" rx="2" fill="#2a78d6"/>
+<text x="128" y="21" font-size="13" fill="#1f2328">outsole</text>
+<rect x="201.2" y="12" width="10" height="10" rx="2" fill="#eb6834"/>
+<text x="217.2" y="21" font-size="13" fill="#1f2328">heel_lining</text>
+<line x1="112.0" x2="112.0" y1="38" y2="208" stroke="#c3c2b7" stroke-width="1"/>
+<text x="112.0" y="224" font-size="12" fill="#6e6c66" text-anchor="middle">0</text>
+<line x1="260.2" x2="260.2" y1="38" y2="208" stroke="#e1e0d9" stroke-width="1"/>
+<text x="260.2" y="224" font-size="12" fill="#6e6c66" text-anchor="middle">1K</text>
+<line x1="408.5" x2="408.5" y1="38" y2="208" stroke="#e1e0d9" stroke-width="1"/>
+<text x="408.5" y="224" font-size="12" fill="#6e6c66" text-anchor="middle">2K</text>
+<line x1="556.7" x2="556.7" y1="38" y2="208" stroke="#e1e0d9" stroke-width="1"/>
+<text x="556.7" y="224" font-size="12" fill="#6e6c66" text-anchor="middle">3K</text>
+<text x="100" y="67.0" font-size="12" fill="#52514e" text-anchor="end">train</text>
+<path d="M112.0,44.0 L192.2,44.0 Q196.2,44.0 196.2,48.0 L196.2,58.0 Q196.2,62.0 192.2,62.0 L112.0,62.0 Z" fill="#2a78d6"><title>train · outsole: 568</title></path>
+<text x="202.2" y="57.0" font-size="12" fill="#52514e">568</text>
+<path d="M112.0,64.0 L558.3,64.0 Q562.3,64.0 562.3,68.0 L562.3,78.0 Q562.3,82.0 558.3,82.0 L112.0,82.0 Z" fill="#eb6834"><title>train · heel_lining: 3,038</title></path>
+<text x="568.3" y="77.0" font-size="12" fill="#52514e">3,038</text>
+<text x="100" y="127.0" font-size="12" fill="#52514e" text-anchor="end">val</text>
+<path d="M112.0,104.0 L118.2,104.0 Q122.2,104.0 122.2,108.0 L122.2,118.0 Q122.2,122.0 118.2,122.0 L112.0,122.0 Z" fill="#2a78d6"><title>val · outsole: 69</title></path>
+<text x="128.2" y="117.0" font-size="12" fill="#52514e">69</text>
+<path d="M112.0,124.0 L165.5,124.0 Q169.5,124.0 169.5,128.0 L169.5,138.0 Q169.5,142.0 165.5,142.0 L112.0,142.0 Z" fill="#eb6834"><title>val · heel_lining: 388</title></path>
+<text x="175.5" y="137.0" font-size="12" fill="#52514e">388</text>
+<text x="100" y="187.0" font-size="12" fill="#52514e" text-anchor="end">test</text>
+<path d="M112.0,164.0 L117.8,164.0 Q121.8,164.0 121.8,168.0 L121.8,178.0 Q121.8,182.0 117.8,182.0 L112.0,182.0 Z" fill="#2a78d6"><title>test · outsole: 66</title></path>
+<text x="127.8" y="177.0" font-size="12" fill="#52514e">66</text>
+<path d="M112.0,184.0 L168.0,184.0 Q172.0,184.0 172.0,188.0 L172.0,198.0 Q172.0,202.0 168.0,202.0 L112.0,202.0 Z" fill="#eb6834"><title>test · heel_lining: 405</title></path>
+<text x="178.0" y="197.0" font-size="12" fill="#52514e">405</text>
+</g></svg>

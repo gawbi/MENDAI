@@ -1,4 +1,4 @@
-# 🎯 Detector · YOLO
+# Detector · YOLO
 
 **담당:** 보인
 

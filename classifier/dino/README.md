@@ -1,4 +1,4 @@
-# 🧠 Classifier · DINO
+# Classifier · DINO
 
 **담당:** 재구
 
