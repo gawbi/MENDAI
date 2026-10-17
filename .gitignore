@@ -229,3 +229,6 @@ checkpoints/
 runs/
 wandb/
 outputs/
+# dataset_damage는 고객 개인정보가 찍힌 이미지가 있어 절대 커밋하지 않는다
+dataset_damage*/
+*.zip
