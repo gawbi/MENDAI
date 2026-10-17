@@ -154,7 +154,7 @@ flowchart LR
 5. @gawbi 승인 후 merge
 
 > [!IMPORTANT]
-> `main`에는 직접 push할 수 없고, Pull Request + @gawbi 승인으로만 반영됩니다.
+> `main`에는 직접 push하지 않습니다. 모든 변경은 Pull Request로 올리고 @gawbi 승인 후 merge합니다.
 > 모델 가중치·데이터셋 같은 큰 파일은 올리지 않습니다.
 
 ## Contributors
