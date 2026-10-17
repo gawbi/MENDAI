@@ -37,6 +37,17 @@
 
 박스는 부위 전체가 아니라 **손상된 자리**에 쳐져 있습니다.
 
+### 라벨 예시
+
+<p align="center">
+  <img src="docs/assets/samples/20240401_093407.jpg" width="200" alt="밑창과 뒤꿈치 안감 손상 라벨 예시">
+  <img src="docs/assets/samples/20240802_091937.jpg" width="200" alt="밑창 손상 라벨 예시">
+  <img src="docs/assets/samples/20240318_105530.jpg" width="200" alt="뒤꿈치 안감 손상 라벨 예시">
+  <img src="docs/assets/samples/20240814_092929.jpg" width="200" alt="뒤꿈치 안감 손상 라벨 예시">
+</p>
+
+정답 라벨입니다. 파란 박스가 `outsole`, 주황 박스가 `heel_lining`이고, 손상 부위 주변만 잘라 냈습니다.
+
 ### 클래스 · split별 박스 수
 
 <picture>
