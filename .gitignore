@@ -224,6 +224,7 @@ __marimo__/
 *.onnx
 *.engine
 *.safetensors
+dataset/
 datasets/
 checkpoints/
 runs/
