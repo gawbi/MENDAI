@@ -54,6 +54,8 @@ def main():
     ap.add_argument("--exist-ok", action="store_true", help="reuse an existing run folder instead of numbering it")
     ap.add_argument("--weights-dir", help="where pretrained weights are downloaded (becomes the working directory)")
     ap.add_argument("--resume", help="last.pt of an interrupted run; the other settings are read from it")
+    ap.add_argument("--resume-batch", type=int, help="with --resume: continue with a smaller batch (after an out-of-memory); "
+                                                     "Ultralytics still accumulates to nbs=64, so the effective batch is unchanged")
     args = ap.parse_args()
     if not args.resume and not (args.data and args.imgsz and args.project and args.name):
         ap.error("--data, --imgsz, --project and --name are required unless --resume is given")
@@ -68,7 +70,7 @@ def main():
     with keep_awake():
         if args.resume:
             model = RTDETR(args.resume)
-            model.train(resume=True)
+            model.train(resume=True, **({"batch": args.resume_batch} if args.resume_batch else {}))
         else:
             model = RTDETR(args.model)
             extra = {"optimizer": args.optimizer}
