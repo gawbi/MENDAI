@@ -13,6 +13,10 @@ Thresholds (t_out, t_heel) are chosen on the union of the --select-on sets by
 sweeping a grid and taking the highest balanced accuracy (ties: higher overall
 accuracy, then higher thresholds). Use --fixed-conf for the one-time test run.
 
+The report (image_eval.md) uses the team format: a summary row in percent
+(balanced accuracy, overall accuracy, per-class recall) and the confusion matrix
+with rows = truth and columns = verdict, for the union of all sets and for each set.
+
 Example
   python eval_image_level.py --out RUN_DIR\\image_eval ^
     --set v5_val RUN_DIR\\pred_v5_val.csv DATA\\photo_labels\\damage_image_labels_v5.csv val ^
@@ -30,7 +34,6 @@ from common import CLASS_NAMES
 
 LABELS = ["normal", "heel", "outsole", "both"]
 LABEL_IDX = {name: i for i, name in enumerate(LABELS)}
-SHORT = {"normal": "N", "heel": "H", "outsole": "O", "both": "B"}
 
 
 def read_labels(csv_path, split):
@@ -112,23 +115,23 @@ def fmt(x, digits=3):
     return "-" if x is None else f"{x:.{digits}f}"
 
 
+def pct(x):
+    return "-" if x is None else f"{100 * x:.2f}%"
+
+
 def md_table(header, rows):
     lines = ["| " + " | ".join(header) + " |", "|---|" + "--:|" * (len(header) - 1)]
     lines += ["| " + " | ".join(str(c) for c in row) + " |" for row in rows]
     return "\n".join(lines)
 
 
-def report_set(name, cm, m):
-    cm_rows = [[label] + cm[i] for i, label in enumerate(LABELS)]
-    metric_rows = [["balanced accuracy", fmt(m["balanced_acc"])], ["overall accuracy", fmt(m["overall_acc"])]]
-    metric_rows += [[f"recall {label}", f"{fmt(m['recall'][label])} ({m['support'][label]})"] for label in LABELS]
-    return "\n".join([
-        f"## {name} (n={m['n']})",
-        "",
-        md_table(["truth \\ verdict"] + LABELS, cm_rows),
-        "",
-        md_table(["metric", "value"], metric_rows),
-    ])
+def team_block(title, cm, m):
+    """Team report format: percent summary row, then the confusion matrix (rows truth, columns verdict)."""
+    summary = md_table(["균형 정확도", "전체 정확도", "normal 재현율", "heel 재현율", "outsole 재현율"],
+                       [[pct(m["balanced_acc"]), pct(m["overall_acc"])]
+                        + [pct(m["recall"][label]) for label in ("normal", "heel", "outsole")]])
+    matrix = md_table(["정답 / 예측"] + LABELS, [[label] + cm[i] for i, label in enumerate(LABELS)])
+    return "\n".join([f"### {title} (n={m['n']})", "", summary, "", "혼동 행렬은 행이 정답, 열이 예측입니다.", "", matrix])
 
 
 def main():
@@ -198,6 +201,11 @@ def main():
                              "photos_without_predictions": s["photos_without_predictions"],
                              "pred_csv": s["pred_csv"], "labels_csv": s["labels_csv"], "split": s["split"]}
 
+    # Union of every set, in the team's report format.
+    all_items = [item for s in sets.values() for item in s["items"]]
+    cm_all = confusion(all_items, t_out, t_heel)
+    combined = {"confusion": cm_all, "labels": LABELS, "sets": list(sets), **summarize(cm_all)}
+
     # One line per set in the RESULTS.md column order: balanced / overall | recall N / H / O
     row_cells = [f"{t_out:.2f} / {t_heel:.2f}"]
     for name, r in results.items():
@@ -215,11 +223,14 @@ def main():
         f"  `{results_row}`",
         "",
     ]
-    md = "\n".join(header) + "\n\n".join(report_set(name, r["confusion"], r) for name, r in results.items()) + "\n"
+    blocks = [team_block("전체 (" + " + ".join(sets) + ")", cm_all, combined)]
+    blocks += [team_block(name, r["confusion"], r) for name, r in results.items()]
+    md = "\n".join(header) + "\n\n".join(blocks) + "\n"
     (out_dir / "image_eval.md").write_text(md, encoding="utf-8")
     (out_dir / "image_eval.json").write_text(json.dumps({
         "thresholds": {"outsole": t_out, "heel_lining": t_heel, "how": how, "select_on": select_names, "step": args.step},
         "results_row": results_row,
+        "combined": combined,
         "sets": results,
     }, indent=2, ensure_ascii=False), encoding="utf-8")
     print(md)
