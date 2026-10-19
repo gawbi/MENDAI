@@ -232,3 +232,9 @@ outputs/
 # dataset_damage는 고객 개인정보가 찍힌 이미지가 있어 절대 커밋하지 않는다
 dataset_damage*/
 *.zip
+# DETR experiment outputs: predictions, photo-level reports, rfdetr default output folder, smoke subsets
+pred_*.csv
+image_eval*/
+output/
+lightning_logs/
+smoke_*/
