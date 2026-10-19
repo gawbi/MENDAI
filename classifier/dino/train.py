@@ -1,4 +1,4 @@
-"""DINOv2 LoRA: 점검, 고정 30 epoch 학습, 마지막 가중치의 val 평가."""
+"""DINOv2/v3 LoRA: 입력 점검, 짧은 학습 점검, 설정별 학습과 val 평가."""
 from __future__ import annotations
 
 import argparse
@@ -8,7 +8,6 @@ import json
 import math
 import os
 import random
-import re
 import subprocess
 import sys
 import time
@@ -30,6 +29,7 @@ from torch.utils.data import DataLoader
 from .data import ORDER, Photos, digest, inventory, seed_worker
 from .evaluate import choose_thresholds, metrics, report_markdown, save_predictions
 from .model import DamageDINO, optimizer_for
+from .tools.report_combined import combine, update_experiment_record
 
 REPO = Path(__file__).resolve().parents[2]
 RECORD = Path(__file__).with_name("EXPERIMENTS.md")
@@ -184,7 +184,9 @@ def predict(model, rows, config, batch, criterion=None):
 
 
 def source_hash():
-    return digest({p.name: p.read_text(encoding="utf-8") for p in Path(__file__).parent.glob("*.py")})
+    root = Path(__file__).parent
+    paths = [*root.glob("*.py"), *(root / "tools").glob("*.py")]
+    return digest({p.relative_to(root).as_posix(): p.read_text(encoding="utf-8") for p in paths})
 
 
 def prepare(config, run_dir, backbone_path, existing=False):
@@ -222,19 +224,10 @@ def checkpoint(path, model, opt, scheduler, epoch, history, identity, selection)
 
 def record(run_dir, status, extra=""):
     """실험 문서의 지정 영역만 갱신한다. 다른 실험 본문은 보존한다."""
-    header, footer = "<!-- EX-01-RUNTIME-START -->", "<!-- EX-01-RUNTIME-END -->"
+    experiment = read_json(run_dir / "protocol.json")["config"]["experiment"]
     relative = run_dir.relative_to(REPO).as_posix()
-    text = f"{header}\n\n### 실제 실행 기록\n\n**상태:** {status}  \n**기록 시각:** {now()}  \n**run:** `{relative}`\n\n{extra}\n\n{footer}"
-    current = RECORD.read_text(encoding="utf-8")
-    if header in current:
-        start, tail = current.split(header, 1)
-        _, end = tail.split(footer, 1)
-        current = start + text + end
-    else:
-        current = current.rstrip() + "\n\n" + text + "\n"
-    current = re.sub(r"^(\| EX-01 \|.*\|) [^|]* \|$", lambda m: f"{m.group(1)} {status} |", current, flags=re.MULTILINE)
-    current = re.sub(r"^\*\*상태:\*\* .*$", f"**상태:** {status}", current, count=1, flags=re.MULTILINE)
-    RECORD.write_text(current, encoding="utf-8")
+    body = f"### 실제 실행 기록\n\n**기록 시각:** {now()}\n\n**run:** `{relative}`\n\n{extra}"
+    update_experiment_record(RECORD, experiment, status, body)
 
 
 def smoke(config, run_dir, parts, protocol, pos_weight):
@@ -247,11 +240,21 @@ def smoke(config, run_dir, parts, protocol, pos_weight):
     criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight.to("cuda"))
     attempts, successful = [], []
     first_cp = False
-    candidates = [(1, False), (1, True), (2, False), (4, False)]
+    fixed_batch = config.get("physical_batch")
+    if fixed_batch is not None:
+        if (type(fixed_batch) is not int or fixed_batch < 1
+                or config["effective_batch"] % fixed_batch):
+            raise ValueError("physical_batch는 유효 배치를 나누는 양의 정수여야 함")
+        cp = config["gradient_checkpointing"]
+        if type(cp) is not bool:
+            raise ValueError("gradient_checkpointing은 bool이어야 함")
+        candidates = [(fixed_batch, cp)]
+    else:
+        candidates = [(1, False), (1, True), (2, False), (4, False)]
     for batch, cp in candidates:
         if batch == 1 and cp and successful:
             continue
-        if batch > 1:
+        if batch > 1 and fixed_batch is None:
             if not successful:
                 break
             cp = first_cp
@@ -260,12 +263,13 @@ def smoke(config, run_dir, parts, protocol, pos_weight):
         try:
             seed_all(config["seed"])
             model = DamageDINO(config, protocol["backbone_path"], cp).to("cuda")
+            write_json(run_dir / "model_structure.json", model.structure)
             sentinel = next(p for p in model.backbone.parameters() if not p.requires_grad)
             original = sentinel.detach().clone()
             opt = optimizer_for(model, config)
             accumulation = config["effective_batch"] // batch
             scheduler = scheduler_for(opt, math.ceil(len(rows)/config["effective_batch"]), config)
-            log(f"128장 점검 시작: batch={batch}, accumulation={accumulation}, checkpointing={cp}")
+            log(f"{len(rows)}장 점검 시작: batch={batch}, accumulation={accumulation}, checkpointing={cp}")
             stat = train_epoch(model, loader(rows, config, batch, True), opt, criterion, accumulation, scheduler, config=config)
             if not torch.equal(original, sentinel):
                 raise RuntimeError("고정 백본 가중치가 변경됨")
@@ -302,14 +306,14 @@ def smoke(config, run_dir, parts, protocol, pos_weight):
             cleanup()
             write_json(run_dir / "smoke_attempts.json", attempts)
     if not successful:
-        raise RuntimeError("1022 입력이 메모리 한도 안에 들어오지 않음")
+        raise RuntimeError(f"{config['input_size']} 입력이 메모리 한도 안에 들어오지 않음")
     best = min(successful, key=lambda r: r["seconds"]/r["samples"])
     selection = {k: best[k] for k in ("batch", "accumulation", "checkpointing")}
     selection["seconds_per_train_image"] = best["seconds"]/best["samples"]
     selection["estimated_training_hours"] = selection["seconds_per_train_image"]*len(parts["train"])*config["epochs"]/3600
     selection["identity"] = protocol["identity"]
     write_json(run_dir / "selection.json", selection)
-    record(run_dir, "128장 점검 완료 · 본 학습 대기", f"```json\n{json.dumps(selection, ensure_ascii=False, indent=2)}\n```\n\n시간 추정은 점검 기반이며 검증·저장 시간은 별도입니다. test는 미평가입니다.")
+    record(run_dir, f"{len(rows)}장 점검 완료 · 본 학습 대기", f"```json\n{json.dumps(selection, ensure_ascii=False, indent=2)}\n```\n\n시간 추정은 점검 기반이며 검증·저장 시간은 별도입니다. test는 미평가입니다.")
     log(f"실행 조합 확정: {selection}")
 
 
@@ -341,7 +345,7 @@ def run_training(config, run_dir, parts, protocol, pos_weight, resume=False):
     elif resume:
         raise RuntimeError("재개할 last.pt 없음")
     write_json(run_dir / "training_status.json", {"status": "running", "started_at": now(), "pid": os.getpid(), "start_epoch": start_epoch})
-    record(run_dir, "학습 중", f"- PID: `{os.getpid()}`\n- 30 epoch, batch {selection['batch']} × 누적 {selection['accumulation']}, checkpointing={selection['checkpointing']}\n- 최종 점수는 학습 완료 후 기록합니다. test는 미평가입니다.")
+    record(run_dir, "학습 중", f"- PID: `{os.getpid()}`\n- {config['epochs']} epoch, batch {selection['batch']} × 누적 {selection['accumulation']}, checkpointing={selection['checkpointing']}\n- 최종 점수는 학습 완료 후 기록합니다. test는 미평가입니다.")
     log(f"본 학습 시작: epoch {start_epoch}~{config['epochs']}, {selection}, pos_weight={pos_weight.tolist()}")
     for epoch in range(start_epoch, config["epochs"]+1):
         gpu_gate(config)
@@ -364,8 +368,8 @@ def run_training(config, run_dir, parts, protocol, pos_weight, resume=False):
             np.savez(run_dir / "last_validation_reference.npz", **validation_probabilities)
         write_json(run_dir / "epochs.json", history)
         write_json(run_dir / "training_status.json", {"status": "running", "pid": os.getpid(), "completed_epoch": epoch, "updated_at": now()})
-        ba = {k: round(v["balanced_accuracy"], 4) for k, v in validations.items()}
-        log(f"epoch {epoch}/{config['epochs']} 완료: train_loss={train['loss']:.5f}, val_BA_fixed0.5={ba}, seconds={stat['epoch_seconds']:.1f}")
+        pooled = combine(validations)
+        log(f"epoch {epoch}/{config['epochs']} 완료: train_loss={train['loss']:.5f}, val_combined_BA_fixed0.5={pooled['balanced_accuracy']:.4f}, seconds={stat['epoch_seconds']:.1f}")
     model.backbone.save_pretrained(run_dir / "lora_adapter", safe_serialization=True)
     torch.save(model.head.state_dict(), run_dir / "head.pt")
     del model, opt, scheduler, criterion
@@ -381,11 +385,11 @@ def finalize(run_dir):
     selection = read_json(run_dir / "selection.json")
     saved = torch.load(run_dir / "last.pt", map_location="cpu", weights_only=False)
     if saved["epoch"] != config["epochs"] or saved["identity"] != checked_protocol["identity"]:
-        raise RuntimeError("완료된 30 epoch 체크포인트가 아님")
+        raise RuntimeError(f"완료된 {config['epochs']} epoch 체크포인트가 아님")
     gpu_gate(config, initial=True)
     model = DamageDINO(config, protocol["backbone_path"], selection["checkpointing"]).to("cuda")
     model.load_trainable(saved["model"])
-    probabilities, labels = {}, {}
+    probabilities, labels, fixed_results = {}, {}, {}
     for name in ("val", "val25"):
         probabilities[name], _ = predict(model, parts[name], config, selection["batch"])
         labels[name] = [ORDER.index(r["label"]) for r in parts[name]]
@@ -394,12 +398,15 @@ def finalize(run_dir):
         with np.load(run_dir / "last_validation_reference.npz") as reference:
             np.testing.assert_allclose(probabilities[name], reference[name], atol=1e-4, rtol=1e-4)
         fixed = metrics(labels[name], probabilities[name])
+        fixed_results[name] = fixed
         if fixed["confusion_matrix"] != saved["history"][-1]["validation_fixed_0_5"][name]["confusion_matrix"]:
             raise RuntimeError("별도 프로세스에서 최종 고정 기준 판정을 재현하지 못함")
     thresholds = choose_thresholds(np.concatenate([labels[k] for k in probabilities]), np.concatenate(list(probabilities.values())))
     results = {k: metrics(labels[k], probabilities[k], thresholds) for k in probabilities}
     write_json(run_dir / "thresholds.json", {"values": thresholds, "output_order": config["output_classes"], "selection": "pooled val+val25 balanced accuracy; 0.01..0.99 grid; accuracy/distance/heel/outsole tie-break"})
     write_json(run_dir / "metrics.json", results)
+    write_json(run_dir / "metrics_fixed_0_5.json", fixed_results)
+    write_json(run_dir / "inference_config.json", {**config, "checkpoint_epoch": config["epochs"], "thresholds": thresholds})
     for name, result in results.items():
         import csv
         with (run_dir / f"{name}_confusion.csv").open("w", encoding="utf-8", newline="") as f:
@@ -409,7 +416,7 @@ def finalize(run_dir):
     summary = f"공통 기준: 안감 {thresholds[0]:.2f}, 밑창 {thresholds[1]:.2f}. last 가중치, test 미평가.\n\n" + report_markdown(results)
     (run_dir / "report.md").write_text(summary + "\n", encoding="utf-8")
     seconds = sum(r["epoch_seconds"] for r in saved["history"])
-    record(run_dir, "30 epoch 및 val 평가 완료", f"- 학습·epoch별 검증 합계: {seconds/3600:.2f}시간 (저장·별도 최종 평가 시간 제외)\n- batch {selection['batch']} × 누적 {selection['accumulation']}, checkpointing={selection['checkpointing']}\n\n" + summary)
+    record(run_dir, f"{config['epochs']} epoch 및 val 평가 완료", f"- 학습·epoch별 검증 합계: {seconds/3600:.2f}시간 (저장·별도 최종 평가 시간 제외)\n- batch {selection['batch']} × 누적 {selection['accumulation']}, checkpointing={selection['checkpointing']}\n\n" + summary)
     write_json(run_dir / "training_status.json", {"status": "complete", "completed_epoch": config["epochs"], "finished_at": now(), "test_evaluated": False})
     log(summary)
 
@@ -425,6 +432,7 @@ def main():
     run_dir = args.run_dir.resolve()
     if not run_dir.is_relative_to((REPO / "runs" / "dino").resolve()):
         raise ValueError("run은 이 저장소의 runs/dino 안에 저장")
+    protocol = None
     try:
         config = read_json(args.config)
         parts, protocol, pos_weight = prepare(config, run_dir, args.backbone_path)
@@ -436,7 +444,7 @@ def main():
     except Exception as exc:
         log(f"실패: {type(exc).__name__}: {exc}")
         traceback.print_exc()
-        if run_dir.exists():
+        if protocol is not None:
             write_json(run_dir / "failure.json", {"time": now(), "stage": args.stage, "error": f"{type(exc).__name__}: {exc}"})
             record(run_dir, f"{args.stage} 단계 중단", f"`{type(exc).__name__}: {exc}`\n\n완료된 체크포인트와 로그를 확인한 뒤 재개합니다. test는 미평가입니다.")
         raise

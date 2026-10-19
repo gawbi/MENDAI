@@ -7,8 +7,40 @@ from datetime import datetime, timedelta, timezone
 import hashlib
 import json
 from pathlib import Path
+import re
 
 ORDER = ["normal", "heel", "outsole", "both"]
+
+
+def update_experiment_record(path, experiment, status, body):
+    """해당 실험 절과 목록의 상태만 바꾸고 다른 실험은 보존한다."""
+    if not re.fullmatch(r"EX-\d+", experiment):
+        raise ValueError("실험 번호 형식 오류")
+    path = Path(path)
+    text = path.read_text(encoding="utf-8")
+    section = re.search(rf"^## {re.escape(experiment)}(?:\s[^\n]*)?$", text, re.MULTILINE)
+    if section is None:
+        raise ValueError(f"실험 문서에 {experiment} 절이 없음")
+    following = re.search(r"^## ", text[section.end():], re.MULTILINE)
+    stop = section.end() + following.start() if following else len(text)
+    before, current, after = text[:section.start()], text[section.start():stop], text[stop:]
+    start, end = f"<!-- {experiment}-RUNTIME-START -->", f"<!-- {experiment}-RUNTIME-END -->"
+    block = f"{start}\n\n{body}\n\n{end}"
+    if start in current and end in current:
+        first, tail = current.split(start, 1)
+        _, last = tail.split(end, 1)
+        current = first + block + last
+    elif start in current or end in current:
+        raise ValueError("실험 기록의 시작·끝 표식 불일치")
+    else:
+        current = current.rstrip() + "\n\n" + block + "\n\n"
+    current = re.sub(r"^\*\*상태:\*\* .*$", lambda _: f"**상태:** {status}", current, count=1, flags=re.MULTILINE)
+    # Only the overview before this section contains status cells. Tables in
+    # the runtime report contain metric values that must remain untouched.
+    before = re.sub(rf"^(\| {re.escape(experiment)} \|.*\|) [^|]* \|$",
+                    lambda m: f"{m.group(1)} {status} |", before, count=1, flags=re.MULTILINE)
+    text = before + current + after
+    path.write_text(text, encoding="utf-8")
 
 
 def read_json(path):
@@ -135,14 +167,10 @@ def refresh_report(run_dir):
     (run_dir / "report.md").write_text(summary + "\n", encoding="utf-8")
     repo = Path(__file__).resolve().parents[3]
     record_path = repo / "classifier/dino/EXPERIMENTS.md"
-    text = record_path.read_text(encoding="utf-8")
-    start, end = "<!-- EX-01-RUNTIME-START -->", "<!-- EX-01-RUNTIME-END -->"
-    if start in text and end in text:
-        before, tail = text.split(start, 1)
-        _, after = tail.split(end, 1)
-        relative = run_dir.relative_to(repo).as_posix()
-        block = f"{start}\n\n### 실제 실행 기록\n\n**run:** `{relative}`\n\n{summary}\n\n{end}"
-        record_path.write_text(before + block + after, encoding="utf-8")
+    relative = run_dir.relative_to(repo).as_posix()
+    state = f"{actual}/{planned} epoch에서 중단 · val 평가 완료" if actual < planned else f"{actual} epoch 및 val 평가 완료"
+    update_experiment_record(record_path, protocol["config"]["experiment"], state,
+                             f"### 실제 실행 기록\n\n**run:** `{relative}`\n\n{summary}")
     write_json(run_dir / "combined_reporting.json", {
         "updated_at": datetime.now(timezone(timedelta(hours=9))).isoformat(timespec="seconds"),
         "reporting": "combined_only", "members": ["val", "val25"], "images": pooled["images"],
