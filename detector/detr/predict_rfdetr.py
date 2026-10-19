@@ -29,6 +29,8 @@ def main():
     ap.add_argument("--out", required=True, help="prediction CSV to write")
     ap.add_argument("--threshold", type=float, default=0.001)
     ap.add_argument("--batch", type=int, default=8)
+    ap.add_argument("--hflip", action="store_true",
+                    help="TTA view: predict on horizontally flipped images; boxes are mapped back to the original image")
     args = ap.parse_args()
 
     import rfdetr
@@ -44,10 +46,20 @@ def main():
     def rows():
         for i in range(0, len(images), args.batch):
             chunk = images[i:i + args.batch]
-            dets = model.predict([str(p) for p in chunk], threshold=args.threshold)
+            if args.hflip:
+                from PIL import Image, ImageOps
+
+                inputs = [ImageOps.mirror(Image.open(p).convert("RGB")) for p in chunk]
+                widths = [img.width for img in inputs]
+            else:
+                inputs, widths = [str(p) for p in chunk], [None] * len(chunk)
+            dets = model.predict(inputs, threshold=args.threshold)
             if not isinstance(dets, list):
                 dets = [dets]
-            for path, d in zip(chunk, dets):
+            for path, w, d in zip(chunk, widths, dets):
+                if w is not None and len(d):
+                    xyxy = d.xyxy.copy()
+                    d.xyxy[:, 0], d.xyxy[:, 2] = w - xyxy[:, 2], w - xyxy[:, 0]  # back to the unflipped image
                 names = d.data.get("class_name") if getattr(d, "data", None) else None
                 if names is None:
                     raise SystemExit("rfdetr returned no class names; cannot map class ids safely")

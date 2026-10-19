@@ -9,6 +9,11 @@ Verdict rule
   outsole if the photo's best outsole score     >= t_out
   both    if both, normal if neither. Photos with no prediction rows are normal.
 
+Test-time augmentation: --add-view NAME PRED_CSV adds another prediction CSV for
+set NAME (for example the --hflip output of predict_*.py). Per photo and class the
+best score of each view is taken and the views are combined with --merge (mean by
+default), before the verdict rule is applied.
+
 Thresholds (t_out, t_heel) are chosen on the union of the --select-on sets by
 sweeping a grid and taking the highest balanced accuracy (ties: higher overall
 accuracy, then higher thresholds). Use --fixed-conf for the one-time test run.
@@ -138,24 +143,41 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--set", nargs=4, action="append", required=True, metavar=("NAME", "PRED_CSV", "LABELS_CSV", "SPLIT"),
                     help="an evaluation set; repeatable. SPLIT is the split column value to score (val / test)")
+    ap.add_argument("--add-view", nargs=2, action="append", default=[], metavar=("NAME", "PRED_CSV"),
+                    help="extra prediction CSV (TTA view) for set NAME; repeatable")
+    ap.add_argument("--merge", choices=["mean", "max"], default="mean", help="how TTA views are combined per photo and class")
     ap.add_argument("--select-on", help="comma-separated set names whose union picks the thresholds (default: all sets)")
     ap.add_argument("--fixed-conf", nargs=2, type=float, metavar=("OUTSOLE", "HEEL"), help="skip the sweep and use these thresholds")
     ap.add_argument("--step", type=float, default=0.05, help="sweep grid step; grid runs from step to 1-step")
     ap.add_argument("--out", required=True, help="output folder for image_eval.md / .json / _sweep.csv / _decisions.csv")
     args = ap.parse_args()
 
+    set_names = [s[0] for s in args.set]
+    views = {name: [pred_csv] for name, pred_csv, _, _ in args.set}
+    for name, pred_csv in args.add_view:
+        if name not in views:
+            raise SystemExit(f"--add-view names unknown set {name!r}; known: {', '.join(set_names)}")
+        views[name].append(pred_csv)
+
     sets = {}
-    for name, pred_csv, labels_csv, split in args.set:
+    for name, _, labels_csv, split in args.set:
         labels = read_labels(labels_csv, split)
-        scores, seen, unknown = read_scores(pred_csv, labels)
         files = sorted(labels)
+        per_view, seen = [], set()
+        for pred_csv in views[name]:
+            scores, view_seen, unknown = read_scores(pred_csv, labels)
+            per_view.append(scores)
+            seen |= view_seen
+            print(f"[{name}] {pred_csv}: {len(files) - len(view_seen)} of {len(files)} photos without any prediction row, "
+                  f"{unknown} rows for other files ignored")
+        combine = max if args.merge == "max" else (lambda vals: sum(vals) / len(vals))
+        scores = {f: [combine([v[f][k] for v in per_view]) for k in (0, 1)] for f in files}
         sets[name] = {
             "files": files,
             "items": [(labels[f], scores[f][0], scores[f][1]) for f in files],
-            "pred_csv": pred_csv, "labels_csv": labels_csv, "split": split,
+            "pred_csv": " + ".join(views[name]), "labels_csv": labels_csv, "split": split,
             "photos_without_predictions": len(files) - len(seen),
         }
-        print(f"[{name}] {len(files)} photos, {len(files) - len(seen)} without any prediction row, {unknown} rows for other files ignored")
 
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -217,6 +239,8 @@ def main():
         "# Image-level evaluation",
         "",
         f"- thresholds: outsole >= {t_out:.2f}, heel_lining >= {t_heel:.2f} ({how})",
+        *([f"- TTA: {max(len(v) for v in views.values())} views per set, per-photo class scores combined by {args.merge}"]
+          if any(len(v) > 1 for v in views.values()) else []),
         "- verdict: heel / outsole if the photo's best score of that class reaches its threshold; both if both; otherwise normal",
         "- balanced accuracy = mean recall over classes that have photos (both has none in val/test)",
         f"- RESULTS.md cells ({' | '.join(['conf (outsole / heel)'] + [c for n in results for c in (f'{n} balanced / overall', f'{n} recall N / H / O')])}):",
@@ -229,6 +253,7 @@ def main():
     (out_dir / "image_eval.md").write_text(md, encoding="utf-8")
     (out_dir / "image_eval.json").write_text(json.dumps({
         "thresholds": {"outsole": t_out, "heel_lining": t_heel, "how": how, "select_on": select_names, "step": args.step},
+        "views": views, "merge": args.merge,
         "results_row": results_row,
         "combined": combined,
         "sets": results,

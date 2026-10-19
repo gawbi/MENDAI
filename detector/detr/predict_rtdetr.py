@@ -26,6 +26,8 @@ def main():
     ap.add_argument("--conf", type=float, default=0.001)
     ap.add_argument("--max-det", type=int, default=300)
     ap.add_argument("--batch", type=int, default=16)
+    ap.add_argument("--hflip", action="store_true",
+                    help="TTA view: predict on horizontally flipped images; boxes are mapped back to the original image")
     args = ap.parse_args()
 
     from ultralytics import RTDETR, settings
@@ -34,17 +36,31 @@ def main():
     images = list_images(args.images)
     model = RTDETR(args.weights)
 
+    def boxes_of(r):
+        if r.boxes is None or len(r.boxes) == 0:
+            return []
+        return zip(r.boxes.xyxy.cpu().numpy(), r.boxes.conf.cpu().numpy(), r.boxes.cls.cpu().numpy().astype(int))
+
     def rows():
-        for r in model.predict(source=str(Path(args.images)), imgsz=args.imgsz, conf=args.conf, max_det=args.max_det,
-                               batch=args.batch, stream=True, verbose=False, save=False):
-            if r.boxes is None or len(r.boxes) == 0:
-                continue
-            name = Path(r.path).name
-            xyxy = r.boxes.xyxy.cpu().numpy()
-            scores = r.boxes.conf.cpu().numpy()
-            classes = r.boxes.cls.cpu().numpy().astype(int)
-            for box, score, cls in zip(xyxy, scores, classes):
-                yield prediction_row(name, cls, score, box)
+        if not args.hflip:
+            for r in model.predict(source=str(Path(args.images)), imgsz=args.imgsz, conf=args.conf, max_det=args.max_det,
+                                   batch=args.batch, stream=True, verbose=False, save=False):
+                name = Path(r.path).name
+                for box, score, cls in boxes_of(r):
+                    yield prediction_row(name, cls, score, box)
+            return
+        import cv2
+        from ultralytics.utils.patches import imread
+
+        for i in range(0, len(images), args.batch):
+            chunk = images[i:i + args.batch]
+            flipped = [cv2.flip(imread(str(p)), 1) for p in chunk]
+            results = model.predict(source=flipped, imgsz=args.imgsz, conf=args.conf, max_det=args.max_det,
+                                    verbose=False, save=False)
+            for path, img, r in zip(chunk, flipped, results):
+                w = img.shape[1]
+                for (x1, y1, x2, y2), score, cls in boxes_of(r):
+                    yield prediction_row(path.name, cls, score, (w - x2, y1, w - x1, y2))
 
     n = write_predictions(args.out, rows())
     print(f"{n} boxes for {len(images)} images -> {args.out}")

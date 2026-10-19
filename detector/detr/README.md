@@ -245,8 +245,8 @@ C:\mendai\envs\rfdetr\Scripts\python.exe predict_rfdetr.py ^
 
 | 스크립트 | 필수 | 선택 (기본값) |
 |------|------|------|
-| `predict_rtdetr.py` | `--weights` `--images` `--imgsz` `--out` | `--conf` (0.001), `--max-det` (300), `--batch` (16) |
-| `predict_rfdetr.py` | `--weights` `--size` `--resolution` `--images` `--out` | `--lora` (학습을 `--lora`로 했으면 반드시), `--threshold` (0.001), `--batch` (8) |
+| `predict_rtdetr.py` | `--weights` `--images` `--imgsz` `--out` | `--conf` (0.001), `--max-det` (300), `--batch` (16), `--hflip` (TTA용 좌우반전 예측, 박스는 원본 좌표로 되돌림) |
+| `predict_rfdetr.py` | `--weights` `--size` `--resolution` `--images` `--out` | `--lora` (학습을 `--lora`로 했으면 반드시), `--threshold` (0.001), `--batch` (8), `--hflip` |
 
 val25는 `dataset_damage_eval25_640\images\val`, test25는 `dataset_damage_eval25_640\images\test`를 `--images`로 줍니다 (1024 모델은 `_1024` 복사본). CSV 열은 `file, class_id, class_name, score, x1, y1, x2, y2`이고 좌표는 입력 이미지 픽셀입니다. 예측 CSV와 시각화도 레포에 올리지 않습니다.
 
@@ -261,6 +261,8 @@ C:\mendai\envs\rtdetr\Scripts\python.exe eval_image_level.py --out C:\mendai\run
 | 옵션 | 설명 |
 |------|------|
 | `--set NAME PRED_CSV LABELS_CSV SPLIT` | 평가셋 하나. 여러 번 줄 수 있음. SPLIT은 라벨 CSV의 split 값 (`val` / `test`) |
+| `--add-view NAME PRED_CSV` | set NAME에 예측 CSV를 하나 더 붙임 (TTA, 예: `--hflip` 결과). 여러 번 줄 수 있음 |
+| `--merge` | TTA 결과를 사진 · 클래스별로 합치는 방법: `mean` (기본) / `max` |
 | `--select-on` | 기준(conf)을 고를 때 쓸 set 이름 (쉼표 구분). 기본은 모든 set의 합집합 |
 | `--fixed-conf OUTSOLE HEEL` | 탐색 없이 이 기준으로 채점. 마지막 test 채점에 씁니다 |
 | `--step` | 탐색 격자 간격 (기본 0.05, 격자는 step부터 1-step까지) |
