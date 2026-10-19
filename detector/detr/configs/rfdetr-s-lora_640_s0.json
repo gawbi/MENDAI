@@ -1,0 +1,30 @@
+{
+  "name": "rfdetr-s-lora_640_s0",
+  "family": "rfdetr",
+  "representative": false,
+  "model": "small",
+  "lora": true,
+  "resolution": 640,
+  "epochs": 30,
+  "seed": 0,
+  "train_dataset": "dataset_damage_v5_640",
+  "batch_size": 4,
+  "grad_accum": 4,
+  "grad_ckpt": false,
+  "num_workers": 2,
+  "eval_sets": [
+    {
+      "name": "v5_val",
+      "images": "dataset_damage_v5_640/images/val",
+      "labels": "photo_labels/damage_image_labels_v5.csv",
+      "split": "val"
+    },
+    {
+      "name": "val25",
+      "images": "dataset_damage_eval25_640/images/val",
+      "labels": "photo_labels/damage_image_labels_eval25.csv",
+      "split": "val"
+    }
+  ],
+  "note": "rfdetr built-in LoRA (backbone_lora=True: DoRA rank 16 on the DINOv2 encoder, fixed by the library). Effective batch batch_size x grad_accum = 16; everything else is the rfdetr default."
+}

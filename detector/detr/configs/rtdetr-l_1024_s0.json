@@ -1,0 +1,30 @@
+{
+  "name": "rtdetr-l_1024_s0",
+  "family": "rtdetr",
+  "representative": false,
+  "model": "rtdetr-l.pt",
+  "resolution": 1024,
+  "epochs": 30,
+  "seed": 0,
+  "train_dataset": "dataset_damage_v5_1024",
+  "batch": 4,
+  "workers": 4,
+  "amp": "bf16",
+  "optimizer": "AdamW",
+  "lr0": 0.0001,
+  "eval_sets": [
+    {
+      "name": "v5_val",
+      "images": "dataset_damage_v5_1024/images/val",
+      "labels": "photo_labels/damage_image_labels_v5.csv",
+      "split": "val"
+    },
+    {
+      "name": "val25",
+      "images": "dataset_damage_eval25_1024/images/val",
+      "labels": "photo_labels/damage_image_labels_eval25.csv",
+      "split": "val"
+    }
+  ],
+  "note": "Ultralytics defaults (optimizer=auto, fp16) went NaN at epoch 4-6, so bf16 + AdamW lr0 1e-4 is used. Ultralytics accumulates gradients up to 64 images whatever the batch."
+}
