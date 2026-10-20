@@ -1,58 +1,51 @@
 # YOLO 진행 상황
 
-**담당:** 보인 · **마지막 업데이트:** 2026-10-20 17:45 (KST)
+**담당:** 보인 · **마지막 업데이트:** 2026-10-20 21:45 (KST)
 
-결과 수치는 [RESULTS.md](RESULTS.md), 실행 방법은 [README](README.md)에 있습니다. 이 문서는 무엇이 끝났고 무엇이 남았는지, 멈춘 실험을 어떻게 이어 가는지만 적습니다.
+결과 수치는 [RESULTS.md](RESULTS.md), 실행 방법은 [README](README.md)에 있습니다. 이 문서는 무엇이 끝났고 무엇이 남았는지만 적습니다.
 
 ## 현재 상태
 
-**모든 실험이 멈춰 있습니다.** 2026-10-20 17:42에 A3 학습을 일시 정지했고, T2(SAHI)는 시작하지 않았습니다. 보인이 재개를 지시할 때까지 새 실험을 시작하지 않습니다.
+**계획한 실험은 모두 끝났습니다 (2026-10-20 21:28).** 지금 돌고 있는 실험은 없습니다. test(v5 test, test25)는 아직 채점하지 않았습니다.
 
-| ID | 실험 (config) | 상태 | 결과 위치 (`<runs-root>/yolo/<config>/`) |
+| ID | 실험 (config) | 상태 | 결과 (v5 val / val25 균형 정확도, conf 0.25) |
 |------|------|------|------|
-| B11 | YOLO11m 기본선 (`yolo11m_1024_s0`) | ✅ 완료 (50 epoch, 평가 완료) | `weights/`, `results.csv`, `photo_eval/` |
-| B26 | YOLO26m 기본선 (`yolo26m_1024_s0`) · **선정 모델** | ✅ 완료 | 같음 |
-| A1 | mosaic 0 (`yolo26m_1024_s0_mosaic0`) | ✅ 완료 | 같음 |
-| A2 | scale 0.25 (`yolo26m_1024_s0_scale025`) | ✅ 완료 | 같음 |
-| T1 | conf 튜닝 (`yolo26m_1024_s0_T1conf`) | ✅ 완료 (재학습 없음) | `choice.json`, `grid.csv`, `photo_eval/` |
-| A3 | lr0 0.0005 (`yolo26m_1024_s0_lr5e-4`) | ⏸ **일시 정지: 5/50 epoch** | `weights/last.pt` (epoch 5 끝, optimizer 상태 포함) |
-| T2 | SAHI (`yolo26m_1024_s0_T2sahi`) | ⏳ **시작 전** | — |
+| B11 | YOLO11m 기본선 (`yolo11m_1024_s0`) | ✅ 완료 | 64.4% / 62.1% |
+| B26 | YOLO26m 기본선 (`yolo26m_1024_s0`) · **선정 모델** | ✅ 완료 | 66.0% / 61.6% |
+| A1 | mosaic 0 (`yolo26m_1024_s0_mosaic0`) | ✅ 완료 | 65.9% / 62.7% |
+| A2 | scale 0.25 (`yolo26m_1024_s0_scale025`) | ✅ 완료 | 70.5% / 66.5% |
+| A3 | lr0 0.0005 (`yolo26m_1024_s0_lr5e-4`) | ✅ 완료 · **가장 좋음** | **75.9% / 76.8%** |
+| T1 | conf 튜닝 (`yolo26m_1024_s0_T1conf`) | ✅ 완료 (재학습 없음, 낙관적) | 75.6% / 76.9% (conf outsole 0.05 / heel 0.25) |
+| T2 | SAHI (`yolo26m_1024_s0_T2sahi`) | ✅ 완료 (재학습 없음) · 채택 안 함 | 64.5% / 59.7% |
 
-- 완료된 run은 모두 50 epoch을 다 돌았고, 학습 중 batch 자동 축소가 없었습니다.
-- B11은 epoch 10 도중 배터리 방전으로 한 번 꺼져 epoch 9의 `last.pt`에서 이어 학습했습니다. A3도 epoch 6 도중 멈췄으므로 같은 방식으로 이어 갑니다 (진행 중이던 epoch 6은 처음부터 다시 돕니다).
+결과 파일은 각 run의 `<runs-root>/yolo/<config>/` (`weights/`, `results.csv`, `args.yaml`, `env_record.json`, `photo_eval/`)에 있습니다. 보인 노트북에서는 `~/aioncampus/runs/yolo/`, 로그는 `~/aioncampus/logs/<config>.log`입니다.
 
 ## 남은 계획
 
-순서대로 진행합니다. 모델 · 기법 · conf는 val(v5 val, val25)로만 고르고, test는 마지막에 한 번만 씁니다.
+모델 · 기법 · conf는 val(v5 val, val25)로만 고르고, test는 마지막에 한 번만 씁니다.
 
-1. **A3 이어 학습** — `last.pt`(epoch 5)에서 50 epoch까지 (약 2.5시간), 끝나면 사진 단위 평가 (conf 0.25).
-2. **T2 SAHI** — B26 `best.pt`로 일반 추론과 SAHI 타일 추론을 v5 val · val25에서 비교 (약 15분 예상). 설정은 고정: 512×512 타일, 겹침 0.2, 타일 입력 1024, 전체 사진 예측 포함, GREEDYNMM · IOS 0.5. 사진당 처리 시간도 기록.
-3. **결과 표 갱신** — `make_tables.py`로 RESULTS.md 표를 다시 만들고 A3 · T2를 채웁니다.
-4. **(조건부) C1 결합** — 단독으로 효과가 확인된 기법만 결합합니다. 지금까지는 A2(scale 0.25)와 T1(conf 튜닝)이 후보입니다. 예: A2 `best.pt`의 사진별 점수로 conf를 다시 고름 (재학습 없음). A3 · T2 결과를 본 뒤 정합니다. 결합 결과가 단독보다 나쁜 경우도 기록합니다.
-5. **최종 평가** — 모델 · 기법 · conf를 모두 고정한 뒤 v5 test · test25를 `--final`로 한 번 채점하고, B26 기본선과 최종안을 비교합니다.
+1. **(조건부) C1 결합** — 단독으로 효과가 확인된 기법만 결합합니다. 후보:
+   - A3 `best.pt`에 conf 튜닝(T1 방식) 적용 — 재학습 없음, `tune_conf.py --config configs/yolo26m_1024_s0_lr5e-4.json`
+   - A2 + A3 (scale 0.25 + lr0 0.0005) 재학습 1회 — 50 epoch · 1024, 약 2.8시간
+   - 결합 결과가 단독보다 나쁜 경우도 기록합니다.
+2. **(선택) A3 재확인** — A3는 효과가 크지만 1회 학습이고 이어 학습이 세 번 있었습니다. 같은 설정을 끊김 없이 다시 학습해 결과가 재현되는지 확인하면 좋습니다.
+3. **최종 평가** — 모델 · 기법 · conf를 고정한 뒤 v5 test · test25를 `--final`로 한 번 채점하고, B26 기본선과 최종안을 비교합니다.
+4. **가중치 업로드** — 완료된 5개 `best.pt`를 팀 드라이브 `yolo_weights_v5/`에 올립니다 (README의 SHA-256 표). 보인 노트북 `~/aioncampus/yolo_weights_v5/`에 같은 구조로 모아 두었습니다.
 
-## 재개 방법
+새 실험은 보인이 지시할 때 시작합니다.
 
-보인 노트북 (`~/aioncampus`, 가상환경 `.venv`, 데이터 `data/mendi_damage_v5_20261017`, 출력 `runs/`):
+## 실행 중 있었던 일
 
-```bash
-cd ~/aioncampus
-./resume_remaining.sh   # A3 이어 학습 → A3 평가 → T2 SAHI → 결과 표 갱신 (절전 방지 포함)
-```
+- **B11:** epoch 10 도중 배터리 방전으로 꺼져 epoch 9의 `last.pt`에서 이어 학습.
+- **A3:** 이어 학습 세 번 — epoch 5 뒤 일시 정지(지시), epoch 7 뒤 노트북 종료, epoch 41 시작 직후 멈춤. 마지막은 mosaic 끄기("Closing dataloader mosaic") 직후 34번째 배치에서 13분 넘게 진행이 없어(메인 프로세스 CPU 100%, GPU 0%) 프로세스를 끝내고 epoch 40의 `last.pt`에서 이어 갔습니다. 원인은 확인하지 못했습니다. 그 직전 epoch 37~40도 평소보다 약 1.9배 느렸습니다.
+- **T2:** 스크립트는 GREEDYNMM/IOS 병합을 요청했지만, SAHI 0.12.8이 낮은 conf(0.01)에서 NMS/IOU로 자동 전환했습니다 (경고 로그). 두 방식 모두 클래스별 최고 점수를 보존하므로 사진 판정에는 영향이 없고, 스크립트와 결과 기록을 실제 쓰인 NMS/IOU 0.5로 맞췄습니다.
+- 모든 학습에서 batch 자동 축소는 없었습니다.
 
-다른 환경에서 같은 순서를 수동으로:
+## 다시 실행할 때
 
-```bash
-PY=<python>; DATA=<mendi_damage_v5_20261017>; RUNS=<runs-root>; Y=detector/yolo
-$PY $Y/train_yolo.py --config $Y/configs/yolo26m_1024_s0_lr5e-4.json --data-root $DATA --runs-root $RUNS --resume
-$PY $Y/eval_photo_level.py --config $Y/configs/yolo26m_1024_s0_lr5e-4.json --data-root $DATA --runs-root $RUNS
-$PY $Y/sahi_eval.py --config $Y/configs/yolo26m_1024_s0.json --data-root $DATA --runs-root $RUNS
-$PY $Y/make_tables.py --runs-root $RUNS --out yolo_experiments.md
-```
-
-- `--resume`은 `<runs-root>/yolo/yolo26m_1024_s0_lr5e-4/weights/last.pt`가 있어야 합니다. 이 파일은 보인 노트북에만 있습니다 (약 220 MB, optimizer 상태 포함).
 - 노트북은 전원을 연결합니다. 배터리로는 GPU가 절반 속도로 떨어지고, 방전되면 학습이 멈춥니다.
 - 학습 · SAHI는 GPU를 함께 쓰지 않도록 차례로 돌립니다 (8 GB에서 학습이 6.2 GB를 씀).
+- 학습이 멈추면 같은 명령에 `--resume`을 붙이면 마지막으로 끝난 epoch의 `last.pt`에서 이어집니다.
 
 ## 기록해 둘 결정
 
@@ -60,4 +53,3 @@ $PY $Y/make_tables.py --runs-root $RUNS --out yolo_experiments.md
 - **A1~A3:** 모두 공식 `yolo26m.pt`에서 새로 시작하고 B26과 한 항목만 다릅니다 (실제 `args.yaml` 비교로 확인).
 - **T1:** 같은 기준(두 셋 평균)으로 0.05 간격 격자에서 클래스별 conf를 골랐습니다. 같은 셋으로 고르고 쟀으므로 낙관적입니다.
 - **YOLO26 후처리:** Ultralytics 8.4.182에서 `nms`를 지정하지 않아 one-to-many head + NMS로 평가했습니다 (B11과 같은 방식). NMS-free 모드는 평가하지 않았습니다.
-- **가중치:** 팀 드라이브 `yolo_weights_v5/`에 올립니다 (README의 SHA-256 표). 업로드는 보인이 직접 합니다.
