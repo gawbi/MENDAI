@@ -1,0 +1,19 @@
+{
+  "name": "yolo11m_1024_s0",
+  "exp_id": "B11",
+  "model": "yolo11m.pt",
+  "resolution": 1024,
+  "epochs": 50,
+  "seed": 0,
+  "train_dataset": "dataset_damage_v5_1024",
+  "batch": 4,
+  "workers": 8,
+  "optimizer": "AdamW",
+  "lr0": 0.001,
+  "patience": 100,
+  "deterministic": true,
+  "save_period": 10,
+  "photo_conf": 0.25,
+  "eval_sets": ["v5_val", "val25"],
+  "note": "batch 8 ran out of memory on an 8 GB GPU at 1024, so batch 4 is used for both models; Ultralytics accumulates gradients to nbs=64 images. patience > epochs so all 50 epochs run. Augmentation and other hyperparameters are Ultralytics defaults."
+}
