@@ -38,6 +38,7 @@ def train_kwargs(cfg: dict, data_root: Path) -> dict:
         save_period=cfg["save_period"],
         plots=True,
         device=0,
+        **cfg.get("overrides", {}),    # the one setting an ablation changes (e.g. mosaic, scale, lr0)
     )
 
 
