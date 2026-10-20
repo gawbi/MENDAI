@@ -29,17 +29,23 @@
 | B26 | 기본선 (conf 0.25) | 66.0% | 61.6% | 완료 |
 | A1 | mosaic 끔 | 65.9% (−0.1%p) | 62.7% (+1.0%p) | 완료 |
 | A2 | scale 0.5 → 0.25 | 70.5% (+4.5%p) | 66.5% (+4.8%p) | 완료 |
-| A3 | lr0 0.001 → 0.0005 | **75.9% (+10.0%p)** | **76.8% (+15.2%p)** | 완료 · **가장 좋음** (전체 정확도도 상승) |
+| A3 | lr0 0.001 → 0.0005 | 75.9% (+10.0%p) | **76.8% (+15.2%p)** | 완료 · val25 최고 |
+| A4 | lr0 0.001 → 0.00025 | **82.0% (+16.1%p)** | 72.7% (+11.0%p) | 완료 · v5 val 최고 (전체 정확도 88.7%) |
 | T1 | conf 튜닝 (outsole 0.05 / heel 0.25, 재학습 없음) | 75.6% (+9.6%p) | 76.9% (+15.3%p) | 완료 · 낙관적 수치 |
 | T2 | SAHI 타일 추론 (재학습 없음) | 64.5% (−1.5%p) | 59.7% (−1.9%p) | 완료 · 채택 안 함 (처리 시간 약 10배) |
+| T3 | NMS-free (재학습 없음) | 66.0% (0.0%p) | 58.8% (−2.9%p) | 완료 · 채택 안 함 |
+| T4 | TTA (재학습 없음) | 70.7% (+4.7%p) | 66.7% (+5.1%p) | 완료 |
+| C1 | A3 + conf 튜닝 (outsole 0.15 / heel 0.30) | 77.4% (+11.5%p) | 80.5% (+18.9%p) | 완료 · 낙관적 수치 |
+| A3+T3 | A3 + NMS-free | 71.3% (+5.3%p) | 66.1% (+4.5%p) | 완료 · 채택 안 함 |
+| A3+T4 | A3 + TTA | 76.7% (+10.7%p) | 78.9% (+17.3%p) | 완료 |
 
 ## 폴더 구성
 
 | 경로 | 역할 |
 |------|------|
-| `configs/*.json` | 설정 5개 (기본선 2 + A1~A3). 모델, 해상도, epoch, seed, batch, optimizer, lr0, 바꾼 항목(`overrides`), 사진 판정 conf, 평가셋 |
+| `configs/*.json` | 설정 6개 (기본선 2 + A1~A4). 모델, 해상도, epoch, seed, batch, optimizer, lr0, 바꾼 항목(`overrides`), 사진 판정 conf, 평가셋 |
 | `train_yolo.py` | config 하나로 학습. `--resume`이면 `last.pt`에서 이어서 학습 |
-| `eval_photo_level.py` | `best.pt`로 평가셋을 예측해 사진 단위 판정으로 바꾸고 4×4 혼동 행렬 · 균형 정확도 · 전체 정확도 · 클래스별 재현율 계산 |
+| `eval_photo_level.py` | `best.pt`로 평가셋을 예측해 사진 단위 판정으로 바꾸고 4×4 혼동 행렬 · 균형 정확도 · 전체 정확도 · 클래스별 재현율 계산. `--nms-free`(T3), `--augment`(TTA, T4), `--out-name`(재학습 없는 변형의 결과 폴더) |
 | `tune_conf.py` | T1. 저장된 사진별 점수로 클래스별 conf 탐색 (재학습 · 재예측 없음) |
 | `sahi_eval.py` | T2. 같은 가중치로 일반 추론과 SAHI 타일 추론 비교, 사진당 처리 시간 기록 |
 | `make_tables.py` | 저장된 `metrics.json`으로 결과 표 생성. 결과가 없는 실험은 미완료로 표시 |
@@ -62,6 +68,7 @@
 | A1 | `yolo26m_1024_s0_mosaic0` | `yolo26m_1024_s0_mosaic0/best.pt` | 43 MB | `0763b423e3aac9ebe91520112405feafde80fdb034b2b185702fd1e6bd8accd9` |
 | A2 | `yolo26m_1024_s0_scale025` | `yolo26m_1024_s0_scale025/best.pt` | 43 MB | `9bdd3041478065bebd2a43424cce61255d7f298b19455be9e052401dd966cfa3` |
 | A3 | `yolo26m_1024_s0_lr5e-4` | `yolo26m_1024_s0_lr5e-4/best.pt` | 43 MB | `ca49a9de1926f5daef0c9ab7bb77d80f13a195eed5fa0068048c120602259918` |
+| A4 | `yolo26m_1024_s0_lr2.5e-4` | `yolo26m_1024_s0_lr2.5e-4/best.pt` | 43 MB | `098dda3756485dba31e2f2511f70b26ec52942b8b6018e77623cf1a682220a2d` |
 
 > [!NOTE]
 > 드라이브 업로드는 보인이 직접 합니다. 업로드 전에는 보인 노트북 `~/aioncampus/runs/`에만 있습니다.
@@ -133,6 +140,11 @@ $PY detector/yolo/train_yolo.py --config detector/yolo/configs/yolo26m_1024_s0_s
 $PY detector/yolo/eval_photo_level.py --config detector/yolo/configs/yolo26m_1024_s0_scale025.json --data-root $DATA --runs-root $RUNS
 # T1: 기본선 평가 결과(per_image.csv)가 있어야 함
 $PY detector/yolo/tune_conf.py --config detector/yolo/configs/yolo26m_1024_s0.json --runs-root $RUNS
+# T3 · T4 (재학습 없음, 같은 best.pt)
+$PY detector/yolo/eval_photo_level.py --config detector/yolo/configs/yolo26m_1024_s0.json --data-root $DATA --runs-root $RUNS --nms-free --out-name yolo26m_1024_s0_e2e --exp-id T3
+$PY detector/yolo/eval_photo_level.py --config detector/yolo/configs/yolo26m_1024_s0.json --data-root $DATA --runs-root $RUNS --augment --out-name yolo26m_1024_s0_tta --exp-id T4
+# C1: A3 평가 결과가 있어야 함
+$PY detector/yolo/tune_conf.py --config detector/yolo/configs/yolo26m_1024_s0_lr5e-4.json --runs-root $RUNS --exp-id C1
 # T2: pip install sahi==0.12.8 필요
 $PY detector/yolo/sahi_eval.py --config detector/yolo/configs/yolo26m_1024_s0.json --data-root $DATA --runs-root $RUNS
 $PY detector/yolo/make_tables.py --runs-root $RUNS --out yolo_experiments.md
