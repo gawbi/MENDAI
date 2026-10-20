@@ -35,8 +35,10 @@
 | `tests/` | 평가 스크립트 검사 (`python -m unittest discover -s detector/detr/tests`) |
 | `requirements-rtdetr.txt` / `requirements-rfdetr.txt` | 두 가상환경의 전체 패키지 버전 |
 | `RESULTS.md` | 결과 표, run별 혼동 행렬, 관찰 |
+| `results/predictions/<config>/` | 6개 설정의 v5 val · val25 예측 (박스 CSV gzip + 사진별 요약표). [아래](#예측-파일) 참고 |
+| `tools/summarize_predictions.py` | 예측 CSV를 사진별 요약표(클래스별 최고 점수, 박스 수)로 바꿈 |
 
-데이터, 가중치, 예측 CSV, 로그, 시각화 이미지는 모두 레포 밖(`--runs-root`)에 생기고 커밋하지 않습니다.
+데이터, 가중치, 로그, 시각화 이미지는 레포 밖(`--runs-root`)에 생기고 커밋하지 않습니다. 커밋한 예측 파일에는 사진이나 정답 라벨이 없습니다.
 
 ## 환경
 
@@ -142,16 +144,31 @@ epoch · 입력 크기 · seed · batch 외에는 라이브러리 기본값입�
 
 ## 가중치
 
-레포에 Git LFS 설정이 없어서 가중치는 커밋하지 않았습니다 (`.gitignore`가 `*.pt`, `*.pth`를 막습니다). 지금은 광빈 노트북에만 있으니 필요하면 광빈에게 요청하세요.
+가중치는 깃허브에 올리지 않고 **팀 구글 드라이브(데이터셋을 공유한 드라이브)의 `detr_weights_v5` 폴더**에 둡니다. 이유는 두 가지입니다: RF-DETR 파일이 깃허브 한도(100 MB)를 넘고, 이 레포는 공개라서 접수증이 섞인 데이터로 학습한 모델을 공개하지 않기 위해서입니다. 받은 파일은 아래 SHA-256으로 확인합니다.
 
-| config | 파일 (광빈 노트북 `C:\mendai\runs\`) | 크기 |
-|------|------|--:|
-| `rtdetr-l_640_s0` | `rtdetr\rtdetr-l_640_s0\weights\best.pt` | 63 MB |
-| `rfdetr-s_640_s0` | `rfdetr\rfdetr-s_640_s0\checkpoint_best_total.pth` | 122 MB |
-| `rfdetr-s-lora_640_s0` | `rfdetr\rfdetr-s-lora_640_s0\checkpoint_best_total.pth` | 124 MB |
-| `rtdetr-l_1024_s0` | `rtdetr\rtdetr-l_1024_s0\weights\best.pt` | 63 MB |
-| `rfdetr-s_1024_s0` | `rfdetr\rfdetr-s_1024_s0\checkpoint_best_total.pth` | 126 MB |
-| `rfdetr-s-lora_1024_s0` | `rfdetr\rfdetr-s-lora_1024_s0\checkpoint_best_total.pth` | 128 MB |
+| config | 파일 (`detr_weights_v5/`) | 크기 | SHA-256 |
+|------|------|--:|------|
+| `rtdetr-l_640_s0` | `rtdetr-l_640_s0/best.pt` | 63 MB | `899e1ffa0d5fcdf627f887ab0401a843e51b3a5bc9a3c761982b6c7d9eec6e69` |
+| `rfdetr-s_640_s0` | `rfdetr-s_640_s0/checkpoint_best_total.pth` | 122 MB | `104c63bb8f80fac87a8e3a5d25d7efff937b30ac58083f665aa714c51faaffa7` |
+| `rfdetr-s-lora_640_s0` | `rfdetr-s-lora_640_s0/checkpoint_best_total.pth` | 124 MB | `7fd0609bd85628d30b0dc61e53a2bdc5c3dabe01d368b9a8ce13e80a59ea09ea` |
+| `rtdetr-l_1024_s0` | `rtdetr-l_1024_s0/best.pt` | 63 MB | `ab165d9817f7a32881f3d93c6fe51279689d1c4b610b65cea66994546ad52891` |
+| `rfdetr-s_1024_s0` (대표) | `rfdetr-s_1024_s0/checkpoint_best_total.pth` | 126 MB | `e16eabfc0b3007d36d977214d789b1aa1e6f259996057e35d11b6e446ab60d06` |
+| `rfdetr-s-lora_1024_s0` (대표) | `rfdetr-s-lora_1024_s0/checkpoint_best_total.pth` | 128 MB | `bfe2d85f99dba8a22c60709df81a35a93421e13e4f4dbaaf2597d16592a077e8` |
+
+Windows에서 확인: `Get-FileHash <파일> -Algorithm SHA256`
+
+## 예측 파일
+
+`results/predictions/<config>/`에 6개 설정의 예측을 그대로 올렸습니다. 위 가중치로 v5 val(639장)과 val25(680장)를 예측한 결과이고, RESULTS.md의 수치가 이 파일로 재현됩니다. test · test25 예측은 아직 만들지 않았습니다.
+
+| 파일 | 내용 |
+|------|------|
+| `<subset>_boxes.csv.gz` | 박스 단위 원본 (`file, class_id, class_name, score, x1, y1, x2, y2`). 사진마다 score 0.001 이상 박스 최대 300개, 좌표는 입력 이미지(640 또는 1024) 픽셀. gzip 압축 |
+| `<subset>_photo_scores.csv` | 사진별 요약 (`image_id, max_outsole, max_heel_lining, n_<class>_ge0.3, n_<class>_ge0.5`). 박스가 없는 사진은 0. `tools/summarize_predictions.py`로 만듦 |
+
+- `<subset>`은 `v5_val` 또는 `val25`입니다. 정답은 데이터셋의 `photo_labels/`에 있습니다 (`damage_image_labels_v5.csv` / `damage_image_labels_eval25.csv`의 `split == val`).
+- 사진 단위 판정은 `max_outsole >= t_out`이면 outsole, `max_heel_lining >= t_heel`이면 heel입니다. 설정별 conf는 위 결과 요약 표에 있습니다.
+- 다른 모델과 결합할 때도 conf나 결합 방식은 v5 val로만 정하고, val25는 확인용으로 둡니다.
 
 ## 평가 지표 (사진 단위)
 
