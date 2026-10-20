@@ -1,7 +1,9 @@
 """Standard vs SAHI tiled inference without retraining (T2).
 
 Same weights, same photo-level rule and threshold. SAHI slices each photo in memory (files and labels
-untouched), predicts every tile at imgsz, adds a full-image prediction, and merges duplicate boxes.
+untouched), predicts every tile at imgsz, adds a full-image prediction, and merges duplicate boxes with
+class-wise NMS (IOU 0.5). SAHI itself switches to NMS/IOU when boxes are kept below conf 0.1, and both NMS and
+GREEDYNMM keep each class's best score, so the photo verdict does not depend on the merge type.
 Standard inference is re-timed in the same process so the per-photo times are comparable.
 
     python detector/yolo/sahi_eval.py --config detector/yolo/configs/yolo26m_1024_s0.json \
@@ -53,7 +55,7 @@ def main() -> None:
                                                     image_size=args.imgsz)
     std_model = YOLO(weights)
     sahi_cfg = {"slice": args.slice, "overlap": args.overlap, "tile_imgsz": args.imgsz,
-                "full_image_pred": not args.no_full, "postprocess": "GREEDYNMM", "match_metric": "IOS",
+                "full_image_pred": not args.no_full, "postprocess": "NMS", "match_metric": "IOU",
                 "match_threshold": 0.5, "class_agnostic": False, "min_conf_cached": args.min_conf,
                 "sahi": sahi.__version__, "ultralytics": ultralytics.__version__}
 
@@ -82,7 +84,7 @@ def main() -> None:
             res = get_sliced_prediction(str(img_dir / fn), sahi_model, slice_height=args.slice,
                                         slice_width=args.slice, overlap_height_ratio=args.overlap,
                                         overlap_width_ratio=args.overlap, perform_standard_pred=not args.no_full,
-                                        postprocess_type="GREEDYNMM", postprocess_match_metric="IOS",
+                                        postprocess_type="NMS", postprocess_match_metric="IOU",
                                         postprocess_match_threshold=0.5, postprocess_class_agnostic=False,
                                         verbose=0)
             t2 = time.perf_counter()
