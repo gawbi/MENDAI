@@ -57,6 +57,7 @@ def main() -> None:
     ap.add_argument("--config", required=True)
     ap.add_argument("--runs-root", required=True)
     ap.add_argument("--step", type=float, default=0.05)
+    ap.add_argument("--exp-id", default="T1")
     args = ap.parse_args()
 
     cfg = json.loads(Path(args.config).read_text())
@@ -66,7 +67,7 @@ def main() -> None:
     n = int(round(1 / args.step))
     grid = [round(i * args.step, 4) for i in range(1, n)]
 
-    out = runs / f"{cfg['name']}_T1conf"
+    out = runs / f"{cfg['name']}_T1conf"  # e.g. yolo26m_1024_s0_lr5e-4_T1conf for A3 + conf tuning
     out.mkdir(parents=True, exist_ok=True)
     with open(out / "grid.csv", "w", newline="") as f:
         w = csv.writer(f)
@@ -97,11 +98,11 @@ def main() -> None:
     for s, m in ms.items():
         d = out / "photo_eval" / s
         d.mkdir(parents=True, exist_ok=True)
-        rec = {"name": out.name, "exp_id": "T1", "set": s, "weights": str(src / "weights/best.pt"),
+        rec = {"name": out.name, "exp_id": args.exp_id, "set": s, "weights": str(src / "weights/best.pt"),
                "conf": f"o{to}/h{th}", "model": cfg["model"], "resolution": cfg["resolution"],
                "epochs": cfg["epochs"], "predict": "cached from " + cfg["name"], "limit": 0, **m}
         (d / "metrics.json").write_text(json.dumps(rec, ensure_ascii=False, indent=2))
-        (d / "confusion_matrix.md").write_text(f"# T1 · {s} · conf outsole {to} / heel {th} (N={m['n']})\n\n"
+        (d / "confusion_matrix.md").write_text(f"# {args.exp_id} · {s} · conf outsole {to} / heel {th} (N={m['n']})\n\n"
                                                f"{ev.cm_markdown(m)}\n")
     print(json.dumps(choice, indent=2))
 

@@ -60,17 +60,25 @@ def run_inference(weights: str, img_dir: Path, files: list, args) -> tuple:
     settings.update({"sync": False})  # no Ultralytics usage analytics
     model = YOLO(weights)
     # nms left unset: Ultralytics 8.4 then uses NMS (one-to-many head for YOLO26), same for every model.
-    meta = {"end2end": bool(getattr(model.model, "end2end", False)), "nms": "default (NMS)"}
+    # --nms-free passes nms=False: YOLO26 one-to-one head without NMS. --augment: Ultralytics TTA (NMS path only).
+    extra = {}
+    if args.nms_free:
+        extra["nms"] = False
+    if args.augment:
+        extra["augment"] = True
     out = {}
     paths = [str(img_dir / f) for f in files]
     for i in range(0, len(paths), args.batch):
         for r in model.predict(paths[i:i + args.batch], imgsz=args.imgsz, conf=args.min_conf, iou=args.iou,
-                               max_det=args.max_det, device=args.device, verbose=False):
+                               max_det=args.max_det, device=args.device, verbose=False, **extra):
             cls = r.boxes.cls.int().tolist()
             cf = r.boxes.conf.tolist()
             mo = max([c for k, c in zip(cls, cf) if k == OUTSOLE_ID], default=0.0)
             mh = max([c for k, c in zip(cls, cf) if k == HEEL_ID], default=0.0)
             out[Path(r.path).name] = (mo, mh)
+    used = model.predictor.model
+    meta = {"end2end": bool(getattr(used, "end2end", False)),
+            "nms": "none (one-to-one head)" if args.nms_free else "default (NMS)", "augment": bool(args.augment)}
     return out, meta
 
 
@@ -110,6 +118,9 @@ def evaluate(args, cfg: dict) -> None:
     data_root = Path(args.data_root).resolve()
     run_dir = Path(args.runs_root).resolve() / "yolo" / cfg["name"]
     weights = args.weights or str(run_dir / "weights/best.pt")
+    name = args.out_name or cfg["name"]
+    if args.out_name:  # inference-only variant of a trained run: its own folder, same weights
+        run_dir = Path(args.runs_root).resolve() / "yolo" / args.out_name
     conf = args.conf if args.conf is not None else cfg["photo_conf"]
 
     for s in args.sets:
@@ -138,15 +149,15 @@ def evaluate(args, cfg: dict) -> None:
                 w.writerow([fn, gt[fn], f"{mo:.4f}", f"{mh:.4f}", pred])
 
         m = metrics(rows)
-        record = {"name": cfg["name"], "exp_id": cfg.get("exp_id", cfg["name"]), "set": s, "weights": weights,
+        record = {"name": name, "exp_id": args.exp_id or cfg.get("exp_id", cfg["name"]), "set": s, "weights": weights,
                   "conf": conf, "model": cfg["model"], "resolution": cfg["resolution"], "epochs": cfg["epochs"],
                   "predict": {"imgsz": args.imgsz, "iou": args.iou, "max_det": args.max_det,
                               "min_conf_cached": args.min_conf, **meta},
                   "limit": args.limit, "time": datetime.now().isoformat(timespec="seconds"), **m}
         (out_dir / "metrics.json").write_text(json.dumps(record, ensure_ascii=False, indent=2))
         (out_dir / "confusion_matrix.md").write_text(
-            f"# {cfg['name']} · {s} · conf={conf} (N={m['n']})\n\n{cm_markdown(m)}\n")
-        print(f"\n[{cfg['name']} · {s} · conf={conf} · N={m['n']}]")
+            f"# {name} · {s} · conf={conf} (N={m['n']})\n\n{cm_markdown(m)}\n")
+        print(f"\n[{name} · {s} · conf={conf} · N={m['n']}]")
         print(cm_markdown(m))
         print(f"balanced {pct(m['balanced_acc'])} | overall {pct(m['overall_acc'])} | "
               + " | ".join(f"R_{c} {pct(m['recall'][c])}" for c in CLASSES))
@@ -193,6 +204,10 @@ def main() -> None:
     ap.add_argument("--device", default="0")
     ap.add_argument("--limit", type=int, default=0, help="debug: first N images only")
     ap.add_argument("--final", action="store_true", help="allow test splits")
+    ap.add_argument("--nms-free", action="store_true", help="YOLO26 only: one-to-one head, no NMS (nms=False)")
+    ap.add_argument("--augment", action="store_true", help="Ultralytics test-time augmentation")
+    ap.add_argument("--out-name", help="write to <runs-root>/yolo/<out-name>/ instead of the run folder")
+    ap.add_argument("--exp-id", help="experiment id shown in tables (default: exp_id in the config)")
     ap.add_argument("--summary", action="store_true")
     args = ap.parse_args()
     if args.summary:
